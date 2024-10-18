@@ -52,7 +52,6 @@ int main() {
       const char *response = "HTTP/1.1 200 OK\r\n"
                              "Content-Type: text/plain\r\n"
                              "Content-Length: 13\r\n"
-                             "Anche a me !\r\n"
                              "Connection: close\r\n"
                              "\r\n";
       send(clientSocket, response, strlen(response), 0);

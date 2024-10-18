@@ -41,7 +41,6 @@ int main() {
     const char *request = "GET / HTTP/1.1\r\n"
                           "Host: localhost\r\n"
                           "Connection: close\r\n"
-                          "Mi piace la Patatona\r\n"
                           "\r\n";
     send(clientSocket, request, strlen(request), 0);
 
