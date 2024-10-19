@@ -1,3 +1,4 @@
+#include "reverseproxy.h"
 #include <arpa/inet.h>
 #include <cerrno>
 #include <cstring>
@@ -6,19 +7,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-class ReverseProxy {
-public:
-  ReverseProxy();
-  ReverseProxy(ReverseProxy &&) = default;
-  ReverseProxy(const ReverseProxy &) = default;
-  ReverseProxy &operator=(ReverseProxy &&) = default;
-  ReverseProxy &operator=(const ReverseProxy &) = default;
-  ~ReverseProxy();
-
-  int port;
-  int targetPort;
-
-  void initProxy() {
+void ReverseProxy::initProxy() {
     int serverSocket =
         socket(AF_INET, SOCK_STREAM, 0); // Server to forward resources
     sockaddr_in serverAddr;
@@ -45,13 +34,7 @@ public:
     }
 
     close(serverSocket);
-  }
-
-private:
-  void clientHandler(int clientSocket);
-};
-
-ReverseProxy::ReverseProxy() {}
+}
 
 void ReverseProxy::clientHandler(int clientSocket) {
   char buffer[4096];
@@ -88,8 +71,6 @@ void ReverseProxy::clientHandler(int clientSocket) {
   }
   close(clientSocket);
 }
-
-ReverseProxy::~ReverseProxy() {}
 
 int main(int argc, char *argv[]) {
   ReverseProxy mainServer;
