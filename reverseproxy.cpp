@@ -36,6 +36,8 @@ void ReverseProxy::initProxy() {
     close(serverSocket);
 }
 
+ReverseProxy::ReverseProxy() {}
+
 void ReverseProxy::clientHandler(int clientSocket) {
   char buffer[4096];
   int bytesRead = recv(clientSocket, buffer, sizeof(buffer), 0);
@@ -71,6 +73,8 @@ void ReverseProxy::clientHandler(int clientSocket) {
   }
   close(clientSocket);
 }
+
+ReverseProxy::~ReverseProxy() {}
 
 int main(int argc, char *argv[]) {
   ReverseProxy mainServer;
