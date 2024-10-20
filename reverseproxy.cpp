@@ -5,6 +5,7 @@
 #include <cstring>
 #include <iostream>
 #include <netinet/in.h>
+#include <openssl/ssl.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -31,24 +32,36 @@ void ReverseProxy::initProxy() {
       if (clientSocket < 0) {
         std::cerr << "Accept failed: " << strerror(errno) << std::endl;
       }
-      clientHandler(clientSocket);
+      SSL* ssl = SSL_new(ctx);
+      SSL_set_fd(ssl, clientSocket);
+      if (SSL_accept(ssl) <= 0) {
+        ERR_print_errors_fp(stderr);
+      } else {
+        clientHandler(ssl);
+      }
+      SSL_free(ssl);
+      close(clientSocket);
     }
 
     close(serverSocket);
 }
 
-ReverseProxy::ReverseProxy() {}
+ReverseProxy::ReverseProxy() {
+  initSSL();
+  ctx = createContext();
+  configureContext(ctx);
+}
 
-void ReverseProxy::clientHandler(int clientSocket) {
+void ReverseProxy::clientHandler(SSL* clientSSL) {
   char buffer[4096];
-  int bytesRead = recv(clientSocket, buffer, sizeof(buffer), 0);
+  int bytesRead = SSL_read(clientSSL, buffer, sizeof(buffer));
 
   if (bytesRead > 0) {
     int targetSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (targetSocket < 0) {
       std::cerr << "Socket creation for target failed: " << strerror(errno)
                 << std::endl;
-      close(clientSocket);
+      SSL_shutdown(clientSSL);
       return; // Clean up
     }
     sockaddr_in targetAddr;
@@ -60,34 +73,23 @@ void ReverseProxy::clientHandler(int clientSocket) {
                 sizeof(targetAddr)) < 0) {
       std::cerr << "Connect to target failed: " << strerror(errno) << std::endl;
       close(targetSocket);
-      close(clientSocket);
+      SSL_shutdown(clientSSL);
     }
     send(targetSocket, buffer, bytesRead, 0);
     bytesRead = recv(targetSocket, buffer, sizeof(buffer), 0);
     if (bytesRead > 0) {
       std::cout << "Request received \n" << buffer;
-      send(clientSocket, buffer, bytesRead, 0);
+      SSL_write(clientSSL, buffer, bytesRead);
     }
-    close(clientSocket);
+    close(targetSocket);
   } else {
     std::cerr << "No bytes received or error: " << strerror(errno) << std::endl;
   }
-  close(clientSocket);
+  SSL_shutdown(clientSSL);
 }
 
-ReverseProxy::~ReverseProxy() {}
-
-int main(int argc, char *argv[]) {
-  initSSL();
-  SSL_CTX *ctx = createContext();
-  configureContext(ctx);
-
-  ReverseProxy mainServer;
-  mainServer.port = 8815;
-  mainServer.targetPort = 8813;
-  mainServer.initProxy();
-
+ReverseProxy::~ReverseProxy() {
   SSL_CTX_free(ctx);
   EVP_cleanup();
-  return 0;
 }
+

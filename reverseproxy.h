@@ -1,6 +1,7 @@
 #ifndef REVERSEPROXY_H
 #define REVERSEPROXY_H
 
+#include <openssl/ssl.h>
 
 class ReverseProxy {
 public:
@@ -17,7 +18,8 @@ public:
   void initProxy();
 
 private:
-  void clientHandler(int clientSocket);
+  SSL_CTX* ctx;
+  void clientHandler(SSL* clientSSL);
 };
 
 #endif // !REVERSEPROXY_H
