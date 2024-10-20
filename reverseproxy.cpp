@@ -10,40 +10,65 @@
 #include <unistd.h>
 
 void ReverseProxy::initProxy() {
-    int serverSocket =
-        socket(AF_INET, SOCK_STREAM, 0); // Server to forward resources
-    sockaddr_in serverAddr;
-    memset(&serverAddr, 0, sizeof(serverAddr));
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_addr.s_addr = INADDR_ANY;
-    serverAddr.sin_port = htons(port); // Target server port
-    if (bind(serverSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) <
-        0) {
-      std::cerr << "Bind failed: " << strerror(errno) << std::endl;
-      close(serverSocket);
-    }
+  // Initialize OpenSSL
+  SSL_library_init();
+  OpenSSL_add_all_algorithms();
+  SSL_load_error_strings();
+  const SSL_METHOD *method = TLS_server_method();
+  SSL_CTX *ctx = SSL_CTX_new(method);
 
-    if (listen(serverSocket, 5) < 0) {
-      std::cerr << "Listen failed: " << strerror(errno) << std::endl;
-      close(serverSocket);
-    }
-    while (true) {
-      int clientSocket = accept(serverSocket, nullptr, nullptr);
-      if (clientSocket < 0) {
-        std::cerr << "Accept failed: " << strerror(errno) << std::endl;
-      }
-      SSL* ssl = SSL_new(ctx);
-      SSL_set_fd(ssl, clientSocket);
-      if (SSL_accept(ssl) <= 0) {
-        ERR_print_errors_fp(stderr);
-      } else {
-        clientHandler(ssl);
-      }
-      SSL_free(ssl);
-      close(clientSocket);
-    }
+  if (!ctx) {
+    std::cerr << "Unable to create SSL context" << std::endl;
+    ERR_print_errors_fp(stderr);
+    return;
+  }
 
+  if (SSL_CTX_use_certificate_file(ctx, "server.crt", SSL_FILETYPE_PEM) <= 0 ||
+      SSL_CTX_use_PrivateKey_file(ctx, "server.key", SSL_FILETYPE_PEM) <= 0) {
+    std::cerr << "Unable to load certificate or key" << std::endl;
+    ERR_print_errors_fp(stderr);
+    SSL_CTX_free(ctx);
+    return;
+  }
+
+  int serverSocket =
+      socket(AF_INET, SOCK_STREAM, 0); // Server to forward resources
+  sockaddr_in serverAddr;
+  memset(&serverAddr, 0, sizeof(serverAddr));
+  serverAddr.sin_family = AF_INET;
+  serverAddr.sin_addr.s_addr = INADDR_ANY;
+  serverAddr.sin_port = htons(port); // Target server port
+  if (bind(serverSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) <
+      0) {
+    std::cerr << "Bind failed: " << strerror(errno) << std::endl;
     close(serverSocket);
+    SSL_CTX_free(ctx);
+    return;
+  }
+
+  if (listen(serverSocket, 5) < 0) {
+    std::cerr << "Listen failed: " << strerror(errno) << std::endl;
+    close(serverSocket);
+    SSL_CTX_free(ctx);
+    return;
+  }
+  while (true) {
+    int clientSocket = accept(serverSocket, nullptr, nullptr);
+    if (clientSocket < 0) {
+      std::cerr << "Accept failed: " << strerror(errno) << std::endl;
+    }
+    SSL *ssl = SSL_new(ctx);
+    SSL_set_fd(ssl, clientSocket);
+    if (SSL_accept(ssl) <= 0) {
+      ERR_print_errors_fp(stderr);
+    } else {
+      clientHandler(ssl);
+    }
+    SSL_free(ssl);
+    close(clientSocket);
+  }
+
+  close(serverSocket);
 }
 
 ReverseProxy::ReverseProxy() {
@@ -52,7 +77,7 @@ ReverseProxy::ReverseProxy() {
   configureContext(ctx);
 }
 
-void ReverseProxy::clientHandler(SSL* clientSSL) {
+void ReverseProxy::clientHandler(SSL *clientSSL) {
   char buffer[4096];
   int bytesRead = SSL_read(clientSSL, buffer, sizeof(buffer));
 
@@ -92,4 +117,3 @@ ReverseProxy::~ReverseProxy() {
   SSL_CTX_free(ctx);
   EVP_cleanup();
 }
-
