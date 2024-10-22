@@ -11,7 +11,7 @@ void initializeSSL() {
 }
 
 SSL_CTX *createContext() {
-  const SSL_METHOD *method = TLS_server_method();
+  const SSL_METHOD *method = SSLv23_server_method();
   SSL_CTX *ctx = SSL_CTX_new(method);
   if (!ctx) {
     perror("Unable to create SSL context");
@@ -45,7 +45,11 @@ void handleClient(SSL *ssl) {
                            "Connection: close\r\n"
                            "\r\n";
     SSL_write(ssl, response, strlen(response));
+  } else {
+    std::cout << "Bytesread error";
   }
+  SSL_shutdown(ssl);
+  SSL_free(ssl);
 }
 
 int main() {
@@ -89,27 +93,8 @@ int main() {
     SSL *ssl = SSL_new(ctx);
     SSL_set_fd(ssl, clientSocket);
     if (SSL_accept(ssl) <= 0) {
-      ERR_print_errors_fp(stderr);
-      int ssl_err = SSL_get_error(ssl, SSL_accept(ssl));
       std::cerr << "Oh ohh, SSL not accepted" << std::endl;
-
-      switch (ssl_err) {
-      case SSL_ERROR_ZERO_RETURN:
-        std::cerr << "SSL connection closed by peer" << std::endl;
-      case SSL_ERROR_WANT_READ:
-      case SSL_ERROR_WANT_WRITE:
-        std::cerr << "SSL read/write operation did not complete, retrying"
-                  << std::endl;
-      case SSL_ERROR_SYSCALL:
-        std::cerr << "SSL_accept syscall error: " << strerror(errno)
-                  << std::endl;
-      case SSL_ERROR_SSL:
-        std::cerr << "SSL protocol error" << std::endl;
-        ERR_print_errors_fp(stderr);
-      default:
-        std::cerr << "SSL accept error: " << ssl_err << std::endl;
-        ERR_print_errors_fp(stderr);
-      }
+      ERR_print_errors_fp(stderr);
     } else {
       handleClient(ssl);
     }

@@ -12,27 +12,15 @@ void initializeSSL() {
   OpenSSL_add_ssl_algorithms();
 }
 
-SSL_CTX *createContext() {
-  const SSL_METHOD *method = TLS_client_method();
-  SSL_CTX *ctx = SSL_CTX_new(method);
-  if (!ctx) {
-    perror("Unable to create SSL context");
-    ERR_print_errors_fp(stderr);
-    exit(EXIT_FAILURE);
-  }
-
-  // Set the location of the CA certificates
-  if (SSL_CTX_load_verify_locations(ctx, "server.crt", NULL) <= 0) {
-    ERR_print_errors_fp(stderr);
-    exit(EXIT_FAILURE);
-  } else {
-    std::cout << "Certificate valid \n";
-  }
-
-  // Require server certificate verification
-  SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
-
-  return ctx;
+SSL_CTX* createContext() {
+    const SSL_METHOD* method = SSLv23_client_method();
+    SSL_CTX* ctx = SSL_CTX_new(method);
+    if (!ctx) {
+        perror("Unable to create SSL context");
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+    return ctx;
 }
 
 void cleanupSSL() { EVP_cleanup(); }
@@ -50,7 +38,7 @@ int main() {
     int clientSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (clientSocket < 0) {
       std::cerr << "Socket creation failed: " << strerror(errno) << std::endl;
-      continue;
+      return 1;
     }
 
     // Setup server address structure
@@ -65,7 +53,7 @@ int main() {
                 sizeof(serverAddr)) < 0) {
       std::cerr << "Connect failed: " << strerror(errno) << std::endl;
       close(clientSocket);
-      continue;
+      return 1;
     }
 
     // Create SSL object
@@ -75,9 +63,6 @@ int main() {
     // Perform SSL handshake
     if (SSL_connect(ssl) <= 0) {
       ERR_print_errors_fp(stderr);
-      SSL_free(ssl);
-      close(clientSocket);
-      continue;
     } else {
       // Prepare and send an HTTP GET request
       const char *request = "GET / HTTP/1.1\r\n"
@@ -95,23 +80,6 @@ int main() {
                   << buffer << std::endl;
       } else {
         ERR_print_errors_fp(stderr);
-        int ssl_err = SSL_get_error(ssl, bytesRead);
-        switch (ssl_err) {
-        case SSL_ERROR_ZERO_RETURN:
-          std::cerr << "SSL connection closed by peer" << std::endl;
-        case SSL_ERROR_WANT_READ:
-        case SSL_ERROR_WANT_WRITE:
-          std::cerr << "SSL read/write operation did not complete, retrying"
-                    << std::endl;
-        case SSL_ERROR_SYSCALL:
-          std::cerr << "SSL_read syscall error: " << strerror(errno)
-                    << std::endl;
-        case SSL_ERROR_SSL:
-          std::cerr << "SSL protocol error" << std::endl;
-          ERR_print_errors_fp(stderr);
-        default:
-          std::cerr << "SSL read error: " << ssl_err << std::endl;
-        }
       }
     }
 
