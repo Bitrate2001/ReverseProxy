@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include <chrono>
+#include <cstdio>
 #include <cstring>
 #include <iostream>
 #include <openssl/err.h>
@@ -7,11 +8,13 @@
 #include <thread>
 #include <unistd.h>
 
+// Init ssl
 void initializeSSL() {
   SSL_load_error_strings();
   OpenSSL_add_ssl_algorithms();
 }
 
+// Create context funct
 SSL_CTX* createContext() {
     const SSL_METHOD* method = SSLv23_client_method();
     SSL_CTX* ctx = SSL_CTX_new(method);
@@ -26,13 +29,16 @@ SSL_CTX* createContext() {
 void cleanupSSL() { EVP_cleanup(); }
 
 int main() {
+  // Server params
   const char *serverIP = "127.0.0.1"; // Server IP address
   const int serverPort = 8815;        // Server port
   const int numRequests = 100;        // Number of requests to send
 
+  // Call ssl init functions
   initializeSSL();
   SSL_CTX *ctx = createContext();
 
+  // Loop request in n < numRequests
   for (int i = 0; i < numRequests; ++i) {
     // Create a socket for each request
     int clientSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -58,7 +64,9 @@ int main() {
 
     // Create SSL object
     SSL *ssl = SSL_new(ctx);
-    SSL_set_fd(ssl, clientSocket);
+    if (SSL_set_fd(ssl, clientSocket) <= 0) {
+      ERR_print_errors_fp(stderr);
+    } 
 
     // Perform SSL handshake
     if (SSL_connect(ssl) <= 0) {
