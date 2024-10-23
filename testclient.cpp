@@ -15,15 +15,15 @@ void initializeSSL() {
 }
 
 // Create context funct
-SSL_CTX* createContext() {
-    const SSL_METHOD* method = SSLv23_client_method();
-    SSL_CTX* ctx = SSL_CTX_new(method);
-    if (!ctx) {
-        perror("Unable to create SSL context");
-        ERR_print_errors_fp(stderr);
-        exit(EXIT_FAILURE);
-    }
-    return ctx;
+SSL_CTX *createContext() {
+  const SSL_METHOD *method = SSLv23_client_method();
+  SSL_CTX *ctx = SSL_CTX_new(method);
+  if (!ctx) {
+    perror("Unable to create SSL context");
+    ERR_print_errors_fp(stderr);
+    exit(EXIT_FAILURE);
+  }
+  return ctx;
 }
 
 void cleanupSSL() { EVP_cleanup(); }
@@ -66,7 +66,7 @@ int main() {
     SSL *ssl = SSL_new(ctx);
     if (SSL_set_fd(ssl, clientSocket) <= 0) {
       ERR_print_errors_fp(stderr);
-    } 
+    }
 
     // Perform SSL handshake
     if (SSL_connect(ssl) <= 0) {
