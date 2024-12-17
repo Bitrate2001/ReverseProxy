@@ -1,4 +1,0 @@
-g++ main.cpp reverseproxy.cpp sslSetup.cpp -o reverseproxy.app -lssl -lcrypto
-
-g++ testclient.cpp -o testclient.app -lssl -lcrypto
-g++ testserver.cpp -o testserver.app -lssl -lcrypto
