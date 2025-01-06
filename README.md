@@ -16,3 +16,11 @@ For server
 ```` console
 g++ testserver.cpp -o testserver.app -lssl -lcrypto
 ````
+
+## Todo
+
+<ol>
+  <li>Add a backend server vector of str "ip"</li>
+  <li>Add a load balancer</li>
+  <li>Use Round-robin scheduling algo</li>
+</ol>
